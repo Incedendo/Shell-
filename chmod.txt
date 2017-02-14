@@ -1,4 +1,4 @@
-To recursively give directories read&execute privileges:
+To recursively give directories read&execute(5) privileges:
 
 find /path/to/base/dir -type d -exec chmod 755 {} +
 To recursively give files read privileges:
@@ -12,3 +12,6 @@ Or, to reduce chmod spawning:
 
 find /path/to/base/dir -type d -print0 | xargs -0 chmod 755 
 find /path/to/base/dir -type f -print0 | xargs -0 chmod 644
+
+
+find /Users/KietNguyen/Desktop/Spring\ 2017/OS/Shell\ Lab/ShellLab/test -type f -exec chmod g-w {} +

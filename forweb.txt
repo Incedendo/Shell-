@@ -1,0 +1,14 @@
+for web
+1) check for existence of that subdir
+2) go+rx
+
+Tips:
+-How to traverse the file list?
+	File tree walk (ftw): while(!Null) -> recursively go into 
+
+-linux.die.net/man/3/ftw (check out TOUCH cm to test if the file can be touched without having to open it)
+
+
+TESTING IF PROGRAM IS RUNNING IN THE BACKGROUND:
+xload &
+xeyes &

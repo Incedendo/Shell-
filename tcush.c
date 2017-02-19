@@ -1,6 +1,6 @@
 //*********************************************************
 //
-// Kiet Nguyen
+// Kiet Nguyen [Final]
 // Operating Systems
 // Project #1: Writing Your Own Shell: tcush
 //
@@ -26,7 +26,6 @@
 #include <time.h>
 
 #define STRMYQUIT "myquit"
-
 #define MAX_CMD_LEN  128
 #define HISTORY_COUNT 10
 
@@ -66,6 +65,7 @@ void doExternal(char **toks, int count);
 int do_N(char **toks, char cm[], int N);
 int do_recent(char **toks);
 void redirect(char **toks);
+void runpipe(int pfd[], char**cmd1, char** cmd2);
 
 //*********************************************************
 //
@@ -129,175 +129,147 @@ char** str_split(char* a_str, const char a_delim)
 //*********************************************************
 int fil (int arg_count, char src[], char dest[]){
     int i, last_space, fdfrom, length, fdto;
-    int nl_pos, tab_pos;
-    int line_count = 0;
-    int prev = 0;
-    int next = 0;
-    int occupied = 0;
-    int already_incur = 0;
+    
+    int count = 0;
+    
     int n_char = 0 ;
-    char buffer[132];
-    int newLineFlag = 0;
-    int spaceFlag = 0;
-    int Spec_already_incur = 0;
+    char *buffer;
+    char line[133];
+    char line2[133];
     
-    if(arg_count < 2 || arg_count > 3){
-        printf("Follow format: fill [from] [to]\n"); //either TWO or THREE args
-        exit(0);
-    }
+    //
+    int new_total;
+    int consec_space;
     
-    printf("Read from %s, print to %s\n", src, dest);
-    
-    //Open the file to be read from
-    if ((fdfrom = open(src, O_RDONLY, 0644)) < 0) {
-        // if file doesnt exist, check if the arg is "-"
-        if(!strcmp(src, "-")){
-            fdfrom = 0; //stdinput
-        }
-        //else display error that the user fails to enter the valid file
-        else{
-            printf("Invalid From input\n");
-            return 0;
-        }
-    }
-    
-    // Missing [TO]: (fill [from]) -> stdout
-    if(arg_count == 2){
-        fdto = 1; //stdout
-        printf("from = %d, to = %d\n", fdfrom, fdto);
-    }
-    
-    // fil from to
-    // fill
-    if(arg_count == 3){
-        if ((fdto = open(dest, O_CREAT|O_WRONLY, 0644)) < 0) {
-            printf("Invalid To input: File does not exist.\n");
-            return 0;
-        }
-    }
     
     // tab = 3 spaces
-    int num_read = 133;
-    strcpy(buffer, "");
-    printf("Read from %d then write to %d\n", fdfrom, fdto);
-    while( (n_char = read(fdfrom, buffer, num_read)) > 0  )
+    int num_read = 1;
+    //buffer = 0;
+    
+    
+    int pos = 0;
+    int new_pos = 0;
+    buffer = (char*)malloc(sizeof(char));
+    
+    for(i = 0; i < 133; i++)
+        line[i] = 0;
+    //strcpy(line,"");
+    count = 0;
+    consec_space = 0;
+    
+    
+    fdfrom = open(src, O_RDONLY, 0644);
+    if(!strcmp(dest, "stdout"))
+        fdto = 1;
+    else
+        fdto = open(dest, O_CREAT|O_WRONLY, 0644);
+    //printf("Read from %d then write to %d\n", fdfrom, fdto);
+    
+    int debt = 0;
+    while( (n_char = read(fdfrom, buffer, 1)) > 0  )
     {
-        already_incur += occupied;
-        //printf("\nREAD: %d from target of %d, occupied value from last loop = %d, already_incur = %d\n",n_char, num_read, occupied, already_incur);
-        
-        newLineFlag = 0;
-        spaceFlag = 0;
-        nl_pos = 0;
-        //last_space = 0;
-        //traverse the buffer array and analyze the content:
-        for(i = 0; i < n_char; i++){
-            
-            if(line_count == 66){
-                buffer[i] ='\f';
+        int a;
+        if(debt > 0){
+            pos = new_pos;
+            for(a = 0; a < new_pos; a++){
+                line[a]  = line2[a];
             }
-            
-            if(buffer[i] == '\t'){
-                int tab_pos = i;
-            }
-            
-            //2) Count the number of lines
-            //   A form fed is added for every 66 lines from the previous form feed.
-            if(buffer[i] == '\n'){
-                //printf("new line read!!!\n");
-                nl_pos = i;
-                //Spec_already_incuralready_incur = num_read - nl_pos -1;
-                already_incur = 0;
-                //printf("BC OF NEW LINE, already inc = %d\n", already_incur);
-                newLineFlag = 1;
-                //printf("ERASE ALL DEBT!!!\n");
-                last_space = 0;
-                occupied = 0;
-                line_count++;
-                // insert formfeed if 10 lines has been read.
-                if(line_count == 66){
-                    buffer[i] = '\f';
-                    line_count = 0;
-                }
-            }
-            /*
-             Find the last space closest to the buffer[132]
-             Replace ' ' with \n and \n with ' '
-             */
-            //Find last pos of space read.
-            if(buffer[i] == ' '){
-                //printf("space at %d\n", i);
-                spaceFlag = 1;
-                last_space = i; //what if this space passes the max length
-            }
-            
-            //1) All trailing blanks at the end of each line are removed.
-            if((buffer[i] == ' ') && (buffer[i+1] == '\n'))
-            {
-                buffer[i] = '\0';
-            }
-            
-            /*increment the length of the string as long as
-             the new line char is not read*/
-            if( (buffer[i] != '\n') ){
-                already_incur++;
-                //printf("%d) Just read: %c\n",already_incur,buffer[i]);
-                /*if length > 132, replace the closest space on the left
-                 with a new line char and reset*/
-                if(already_incur == 133){
-                    //buffer[0] = '[';
-                    //buffer[i] = ']';
-                    occupied = 0;
-                    //printf("\n[-->Num just read = %d, current index: %d = char: %c, debt from previous = %d\n", n_char,i, buffer[i], occupied);
-                    
-                    //printf("already_incur = %d\n", already_incur);
-                    
-                    //printf("-------");
-                    //if 1 '\n' already exist, do not enter second line.
-                    if( (last_space >= nl_pos) && (newLineFlag == 0) && (spaceFlag == 1) ) {
-                        buffer[last_space] = '\n';
-                        //printf("-->Enter new line at %d\n", last_space);
-                    }
-                    
-                    already_incur = 0;
-                    line_count++;
-                    if( newLineFlag == 1){
-                        //everthing after new line is parsed to the next line and length < 132
-                        occupied = n_char-nl_pos-1;
-                        //printf("Case new line\n");
-                        //printf("occupied = %d!\n", occupied);
-                    }
-                    if( newLineFlag == 0 && spaceFlag == 1){
-                        occupied = n_char-1-last_space;
-                        //printf("last space = %d!\n", last_space);
-                    }
-                    //printf("-->occupied<-- = %d]\n",occupied);
-                    //next = num_read-1-last_space
-                    
-                    num_read = 133 - occupied;
-                    //printf("-->next debt: %d, num will read = %d\n",occupied,num_read);
-                    
-                    
-                }else if(already_incur < 132){
-                    //there are less char than what is specified.
-                    num_read = 133 - already_incur;
-                    //printf("read EOL\n");
-                }
-                
-            }
-            //printf("reach\n");
+            new_pos = 0;
+            debt = 0;
         }
         
-        //Display the characters read
-        //n_char = write(1, buffer, n_char);
-        n_char = write(fdto, buffer, n_char);
+        if(pos == 131) {
+            line[pos++] = *buffer;
+            
+            //pos = 132
+            debt = pos - last_space - 1;
+            if (debt < 0) debt = 0;
+            //printf("Last space pos = %d, debt = %d\n",last_space, debt);
+            //last char at index pos-1
+            
+            //(last space+1, last space+2, last space+3,...,pos -1)
+            new_pos = 0;
+            if(debt > 0){
+                for (a = last_space + 1; a < pos; a++){
+                    printf("[%c]\n", line[a]);
+                    line2[new_pos] = line[a];
+                    line[a] = 0;
+                    new_pos++;
+                }
+            }
+            pos = new_pos;
+            line[last_space] = '\n';
+            
+            //works from here
+            write(1, line, 133);
+            write(fdto, line, 133);
+            pos = 0;
+            consec_space = 0;
+        }
+        else{
+            //printf("pos = %d\n", pos);
+            if( *buffer == ' '){
+                //printf("[space] consec_space = %d, pos = %d\n", consec_space, pos);
+                line[pos++] = ' ';
+                if(consec_space == 0){
+                    last_space = pos - 1;
+                    consec_space = 1;
+                }else{
+                    consec_space++;
+                }
+            }
+            else if( *buffer == '\t'){
+                //printf("[tab] consec_space = %d, pos = %d\n", consec_space, pos);
+                line[pos++] = ' ';
+                line[pos++] = ' ';
+                line[pos++] = ' ';
+                if(consec_space == 0)
+                    consec_space = 3;
+                else
+                    consec_space += 3;
+            }
+            else if( *buffer == '\n'){
+                //printf("[new line] consec_space b4 = %d\n", consec_space );
+                if(consec_space > 0){
+                    //printf("Pos before '\n' = %d\n", pos);
+                    int ii = pos - 1;
+                    int r = 0;
+                    
+                    while(line[ii] == ' '){
+                        line[ii] = 0;
+                        ii--;
+                    }
+                    consec_space = 0;
+                }
+                line[pos++] = '\n'; 
+                count++;
+                //printf("newline: count = %d\n",count);
+                
+                if(count == 5){
+                    count = 0;
+                    line[pos++] = '\f';     
+                }
+                for(i = pos; i < 133; i++){
+                    line[i] = 0;
+                }
+                write(1, line, 133);
+                write(fdto, line, 133);
+                pos = 0;
+            }
+            else if(*buffer != '\n'){
+                line[pos++] = *buffer;
+                consec_space = 0;
+            }   
+        } 
+        
     }
-    //printf("---------------\n");
+    //added after submission
+    free(buffer);
     return 0;
 }
-
 //*********************************************************
 //
-// Function history: print maximum 20 strings of command
+// Function history: print maximum 10 strings of command
 // previously entered by user
 //
 //*********************************************************
@@ -342,16 +314,9 @@ int ldir (void)
         while ((ep = readdir (dp)) != NULL){
             if (ep->d_type == DT_DIR)
             {
-                //printf("%s\n", ep->d_name);
                 strcpy(path,ep->d_name);
                 printf("Dir: %s\n", path);
-                // directory: read + execute: 5
-                //int res = chmod(path, S_IXOTH | S_IROTH);
-//                if( (strcmp(path,"..") != 0 ) && (strcmp(path,".") != 0 )){
-//                    if( chmod(path , S_IROTH | S_IXOTH ) == -1 ) {
-//                        perror(path);
-//                    }
-//                }
+ 
             }
         }
         closedir (dp);
@@ -360,7 +325,7 @@ int ldir (void)
         perror ("Couldn't open the directory");
     
     
-    //2nd round
+    //Put some space between the Directory and Regular Files
     printf("\n--------------------------------------------\n\n");
     
     if (ds)
@@ -370,11 +335,7 @@ int ldir (void)
             if (ep->d_type == DT_REG)
             {
                 printf("File: %s\n", ep->d_name);
-//                if( (strcmp(path,"..") != 0 ) && (strcmp(path,".") != 0 )){
-//                    if( chmod(ep->d_name , S_IROTH ) == -1 ) {
-//                        perror(path);
-//                    }
-//                }
+
             }
         }
         closedir (ds);
@@ -424,11 +385,11 @@ int doForweb(int arg_count, char **toks) {
     return 0;
 }
 
-//*********************************************************
+//*******************************************************************************************
 //
-// Function isInternal()
+// Function isInternal(): check if a command is a built-in command
 //
-//*********************************************************
+//*******************************************************************************************
 
 bool isInternal(char** toks){
     bool retval;
@@ -448,58 +409,67 @@ bool isInternal(char** toks){
     return retval;
 }
 
-//*********************************************************
+//*****************************************************************************************************************************
 //
-// Function isInternal()
+// Function doInternal(char **toks): carry out 1 of the 4 internal commands or one of the BANG options
 //
-//*********************************************************
+//*****************************************************************************************************************************
 int doInternal(char **toks){
     char dest[1000];
     char src[1000];
     char cm[1000];
     
     if(!strcmp(toks[0],"!") ){
+        //case: !!
         if(!strcmp(toks[1], "!")){
             do_recent(toks);
-        }else{
+        }
+        //case: !N
+        else{
+            //get N from !N
             int x = atoi(toks[1]);
+            //check if N is a valid index in the table
             if(x >= actual){
-                printf("Such command does not exist\n");
+                printf("Command out of valid bound\n");
                 return 0;
             }
             else{
-                printf("Re-execute Command number %d which is %s\n",x, hist[(x-1)%10]);
+                //printf("Re-execute Command number %d which is %s\n",x, hist[(x-1)%10]);
                 strcpy(hist[current-1], hist[(x-1)%10]);
                 strcpy(cm,hist[(x-1)%10]);
                 do_N(toks, cm, x);
             }
-            
         }
-        
     }else if( !strcmp(toks[0],"history")){
-        //printf("do history\n");
         history(hist, current,actual);
     }else if( !strcmp(toks[0],"forweb") ){
-        printf("do forweb\n");
         doForweb(arg_count,toks);
     }else if( !strcmp(toks[0],"nls") ){
         ldir();
     }else if( !strcmp(toks[0],"fil")){
-        printf("[do fil] ");
         printf("argc = %d\n",arg_count);
+        
+        /*
+         check valid arg count, only continue if condition is TRUE:
+            - fil redirection 
+            - fil a.txt b.txt
+         */
         if(arg_count > 1 && arg_count < 4){
-            printf("Args count for fill: %d\n", arg_count);
+            //printf("Args count for fill: %d\n", arg_count);
+            
             //toks[1] is always provided => name of FROM ( either "-" or file name )
             strcpy(src, toks[1]);
             
+            //printf("src: %s\n", toks[1]);
             if(arg_count == 3){
                 strcpy(dest, toks[2]);  //dest is either "stdout" or "name of file"
             }else{
                 strcpy(dest, "stdout");
             }
+            //printf("dest: %s\n", dest);
             fil(arg_count,src,dest);
             
-        }else{
+        }else{ //error handling
             if(arg_count <= 1)
                 printf("Enter 1 or 2 files [current arg count = 1]\n");
             else
@@ -509,61 +479,41 @@ int doInternal(char **toks){
     
     return 0;
 }
-//*********************************************************
+//*************************************************************************************
 //
-// Function do_Recent()
+// Function do_Recent(): this command re-execute the most recently executed command
 //
-//*********************************************************
+//*************************************************************************************
 int do_recent(char **toks){
     int new_current;
     char rec_cm[100];
     char **tokens;
-
     
+    //test if there is actual recently executed command, else dont do anything and print Warning to stdout.
     if(current == 1){
+        
         printf("No commands in history!\n");
         
     }else{
-        printf("Jump to do recent\n");
+        //Jump to do recent command:
+        // Replace the "!!" with the one right before it.
         hist[current-1] = hist[current-2];
         new_current = current - 2;
-        printf("Most recent cm to Re-execute: %s\n\n", hist[new_current]);
+        
+        //pass the Command to be excuted into [rec_cm], split it into tokens and store in [tokens]
         tokens = NULL;
         strcpy(rec_cm,hist[new_current]);
         tokens = str_split(rec_cm,' ');
-        int ind;
-        
-//        //print out all the tokens
-//        printf("Contents of [tokens]: ");
-//        for(ind = 0; tokens[ind] != NULL; ind++){
-//            printf("%s, ",tokens[ind]);
-//        }
-//        printf("\n");
-//        
-//        //print out all the toks
-//        printf("Contents of [toks]: ");
-//        for(ind = 0; toks[ind] != NULL; ind++){
-//            printf("%s, ",toks[ind]);
-//        }
-//        printf("\n");
-        
         toks = tokens;
         
         if(isInternal(toks)){
+            
             doInternal(toks);
-            printf("pass\n");
+            
         }else{
-            printf("[do_recent]\n");
+            
             doExternal(toks, arg_count);
         }
-        
-//        printf("NEW TOKS : ");
-//        for(ind = 0; toks[ind] != NULL; ind++){
-//            printf("%s, ", toks[ind]);
-//        }
-//        printf("\n");
-        
-        
     }
 
     return 0;
@@ -579,35 +529,16 @@ int do_N(char **toks, char cm[], int N){
     char **tokens;
     int i;
     
-    
     if(N > actual){
         printf("No such commands in history!\n");
-        
     }else{
-        printf("Jump to do recent: ");
+        //Jump to do recent:
         
-        printf("Re-execute Command number %d which is %s\n",N, cm);
-        //strcpy(rec_cm,cm);
-        
+        // Re-execute Command number N
         
         tokens = NULL;
         tokens = str_split(cm,' ');
         int ind;
-        
-        //        //print out all the tokens
-        //        printf("Contents of [tokens]: ");
-        //        for(ind = 0; tokens[ind] != NULL; ind++){
-        //            printf("%s, ",tokens[ind]);
-        //        }
-        //        printf("\n");
-        //
-        //        //print out all the toks
-        //        printf("Contents of [toks]: ");
-        //        for(ind = 0; toks[ind] != NULL; ind++){
-        //            printf("%s, ",toks[ind]);
-        //        }
-        //        printf("\n");
-        
         toks = tokens;
         
         for(i = 0; toks[i] != NULL; i++){
@@ -618,19 +549,10 @@ int do_N(char **toks, char cm[], int N){
         
         if(isInternal(toks)){
             doInternal(toks);
-            printf("pass\n");
         }else{
-            printf("[do_N] Argc for external [%d]\n", arg_count);
+            //printf("[do_N] Argc for external [%d]\n", arg_count);
             doExternal(toks,arg_count);
         }
-        
-        //        printf("NEW TOKS : ");
-        //        for(ind = 0; toks[ind] != NULL; ind++){
-        //            printf("%s, ", toks[ind]);
-        //        }
-        //        printf("\n");
-        
-        
     }
     
     return 0;
@@ -645,7 +567,7 @@ void doExternal(char **toks, int arg_count)
 {
     int status = 0;
     
-    printf("count = [%d], last token: [%s]\n", arg_count,toks[arg_count-1]);
+    //printf("count = [%d], last token: [%s]\n", arg_count,toks[arg_count-1]);
     
     int pid = fork();
     int childpids[10];
@@ -656,7 +578,7 @@ void doExternal(char **toks, int arg_count)
     
     //if(commandWordCount > 1){
     if(strcmp(toks[arg_count-1], "&") == 0) {
-        printf("background!!\n");
+        //printf("background!!\n");
         background = 1;
         toks[arg_count-1] = NULL;
     }
@@ -667,7 +589,7 @@ void doExternal(char **toks, int arg_count)
     if (pid == 0) {
         // child process
         if(background) {
-            printf("Child background process...");
+            //printf("Child background process...");
             
             fclose(stdin); // close child's stdin
             fopen("/dev/null", "r"); // open a new stdin that is always empty
@@ -675,11 +597,11 @@ void doExternal(char **toks, int arg_count)
             
             
             // If an error occurs, print error and exit
-            fprintf (stderr, "unknown command: %s\n", toks[0]);
+            printf( "unknown command: %s\n", toks[0]);
             exit(1);
             
         } else {
-            printf("Not Background\n");
+            //printf("Not Background\n");
             execvp(*toks,toks);
             
             // If an error occurs, print error and exit
@@ -720,6 +642,83 @@ void sighandler(int signum)
 
 //*********************************************************
 //
+// Function runpipe:
+//
+//*********************************************************
+void runpipe(int pfd[], char**cmd1, char** cmd2)
+{
+    int pid;
+    
+    switch (pid = fork()) {
+            
+        case 0: /* child */
+            dup2(pfd[0], 0);
+            close(pfd[1]);  /* the child does not need this end of the pipe */
+            execvp(cmd2[0], cmd2);
+            perror(cmd2[0]);
+            
+        default: /* parent */
+            dup2(pfd[1], 1);
+            close(pfd[0]);  /* the parent does not need this end of the pipe */
+            execvp(cmd1[0], cmd1);
+            perror(cmd1[0]);
+            
+        case -1:
+            perror("fork");
+            exit(1);
+    }
+}
+
+//*********************************************************
+//
+// Function isPipe:
+//
+//*********************************************************
+int doPipe(char **toks, int pipePos){
+    
+    char cmd1[1000];
+    char cmd2[1000];
+    int pid, status;
+    int fd[2];
+    int ii;
+    
+    printf("isPipe == 1\n");
+    
+    for(ii = 0; strcmp(toks[ii], "|") != 0; ii++){
+        strcat(cmd1, toks[ii]);
+        strcat(cmd1, " ");
+    }
+    //printf("cmd1 = %s\n",cmd1);
+    
+    for(ii = pipePos + 1; toks[ii] != NULL; ii++){
+        strcat(cmd2, toks[ii]);
+        strcat(cmd2, " ");
+    }
+    //printf("cmd2 = %s\n",cmd2);
+ 
+    
+    pipe(fd);
+    
+    switch (pid = fork()) {
+            
+        case 0: /* child */
+            runpipe(fd, str_split(cmd1, ' '), str_split(cmd2, ' '));
+            
+        default: /* parent */
+            while ((pid = wait(&status)) != -1)
+                printf("process %d exits with %d\n", pid, WEXITSTATUS(status) );
+            break;
+            
+        case -1:
+            perror("fork");
+            //exit(1);
+    }
+
+    return 0;
+}
+
+//*********************************************************
+//
 // Function Redirection:
 //
 //*********************************************************
@@ -730,10 +729,10 @@ int do_redirect(char **toks)
     char src[100];
     char dup_cmd[100];
     
-    printf("enter redirect\n");
+    //printf("enter redirect\n");
     
     if(!strcmp(toks[0], ">") || !strcmp(toks[0], "<") ){
-        printf("[do_redirect] incorrect format\n");
+        printf("[do_redirect] Incorrect format\n");
         return;
     }
     
@@ -762,20 +761,22 @@ int do_redirect(char **toks)
                  history > out.txt
                  ls -l > out.txt
                  */
-                printf("task 1\n");
+                //printf("task 1\n");
                 task = 1;
                 arg_count = ii; //arg_count for toks before ">"
-                printf("[do_redirect] command count (minus the [<...] part) = %d\n",arg_count );
+                //printf("[do_redirect] command count (minus the [<...] part) = %d\n",arg_count );
             }
             else if(!strcmp( toks[ii], "<" )){
-                printf("task 2\n");
+                //printf("task 2\n");
                 task = 2;
             }
         }
     }
     
+    /* Redirection Task Case 1: ">" parse result to the specified output*/
+    
     if(task == 1){
-        printf("[In redirect] task 1\n");
+        //printf("[In redirect] task 1\n");
         ii = 0;
         strcpy(dup_cmd, "");
         while( strcmp(toks[ii],">") != 0){
@@ -784,10 +785,10 @@ int do_redirect(char **toks)
             ii++;
         }
         
-        printf("[do_redirect] file_pos = %d\n",file_pos);
+        //printf("[do_redirect] file_pos = %d\n",file_pos);
         if(file_pos > 1){
             strcpy(dest, toks[file_pos]);
-            printf("[do_redirect] dest = %s\n",dest);
+            //printf("[do_redirect] dest = %s\n",dest);
 
         }
         else{
@@ -808,9 +809,9 @@ int do_redirect(char **toks)
         }
         
         //test
-        for(ii = file_pos - 1; toks[ii] != NULL; ii++){
-            printf("After >, toks aka command is: %s\n", toks[ii]);
-        }
+//        for(ii = file_pos - 1; toks[ii] != NULL; ii++){
+//            printf("After >, toks aka command is: %s\n", toks[ii]);
+//        }
         
         
         dup2(newfd, 1);
@@ -838,6 +839,8 @@ int do_redirect(char **toks)
 }
 
 
+
+
 //*********************************************************
 //
 // Global Variables
@@ -860,6 +863,7 @@ int main( int argc, char *argv[] )
     char **tokens;
     int retval;
     int isDup;
+    int isPipe, pipePos;
     int task;
     int file_pos;
     int fd;
@@ -877,6 +881,7 @@ int main( int argc, char *argv[] )
     
     char cmd[MAX_CMD_LEN];
     
+    
     // Good programming habit to prevent bug
     // Set pointers to NULL right after declaration.
     for (i = 0; i < HISTORY_COUNT; i++)
@@ -893,9 +898,11 @@ int main( int argc, char *argv[] )
         time ( &rawtime );
         timeinfo = localtime ( &rawtime );
         
+        /*Set the shell's default message*/
+        printf( "(%02d:%02d:%02d) Kiet's Shell: ",timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec );
+        
         /* get arguments */
         toks = gettoks();
-        
         
         if( toks[0] != NULL )
         {
@@ -907,48 +914,56 @@ int main( int argc, char *argv[] )
                 strcat(cmd, toks[i]);
                 strcat(cmd," ");
             }
+            //printf("ORIGINAL CMD = %s\n", cmd);
             
+            //
             hist[current] = strdup(cmd); //save the new command to history char*
             current = (current + 1) % HISTORY_COUNT; // inc counter
             actual++;
             
-            /* simple loop to echo all arguments */
+                        /* simple loop to echo all arguments */
             for( ii=0; toks[ii] != NULL; ii++ )
             {
-                //printf( "(%s) Argument %d: %s\n",asctime (timeinfo), ii, toks[ii] );
-                printf( "Argument %d: %s\n", ii, toks[ii] );
+                //printf("Argument %d: %s\n", ii, toks[ii] );
                 arg_count = ii;
             
                 //check if redirection is required.
                 if(!strcmp( toks[ii], ">" ) || !strcmp( toks[ii], "<" )){
                     isDup = 1;
-                    printf("Redirect detected.\n");
+                    //printf("Redirect detected.\n");
+                }
+                
+                if(!strcmp( toks[ii], "|" )){
+                    isPipe = 1;
+                    pipePos = ii;
+                    //printf("Pipe detected at index [%d]!\n", pipePos);
                 }
                 
             }
             arg_count++;
             
-            
-            
             if( !strcmp( toks[0], STRMYQUIT )){
                 break;
             }
-            
+
             if(isDup == 1){
                 
                 /* Save current stdout for use later */
                 saved_stdout = dup(1);
-                
-                printf("reach\n");
+ 
                 fd = do_redirect(toks);
-                printf("redirect to [%d] done\n", fd);
+                //printf("redirect to [%d] done\n", fd);
             }
             
-            if(isInternal(toks)){
-                doInternal(toks);
+            if(isPipe != 1){
+                if(isInternal(toks) ){ // && isPipe != 1
+                    doInternal(toks);
+                }else{
+                    //printf("[main] do external for [%s], argc: [%d]\n",toks[0],arg_count);
+                    doExternal(toks,arg_count);
+                }
             }else{
-                printf("[main] do external for [%s], argc: [%d]\n",toks[0],arg_count);
-                doExternal(toks,arg_count);
+                doPipe(toks, pipePos);
             }
             
             if(isDup == 1){
@@ -957,9 +972,12 @@ int main( int argc, char *argv[] )
                 close(saved_stdout);
 
                 isDup = 0;
-                printf("back to normal\n");
+                //printf("back to normal\n");
             }
-
+            
+            if(isPipe == 1){
+                isPipe = 0;
+            }
         }
         
         

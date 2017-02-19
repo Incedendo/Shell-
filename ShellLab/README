@@ -1,0 +1,86 @@
+KIET NGUYEN
+Shell Project
+
+Language used: C
+
+Hour spent on reading/researching for what to use to do project: 5 plus hours.
+
+Total hours spent coding + debugging: 40 plus hours. (most of which are for researching and debugging).
+
+Late coupon used: 1.
+
+Hours spent coding:
+	- Entire first weekend:
+		.tried setting up the environment
+		.research
+		.signal handler
+		.nls
+	- 2-3 hour daily after that: retesting previous function + further reading on how to do the next parts
+	- Morning till late after noon on Saturday of second weekend: worked on fil 1st try, accomplished 3/5 tasks, then got stuck.
+	- Most of Sunday of second week: 25 pts execvp
+	- Tuesday night: 
+		-forweb + restructured the format of the program.
+		- Before that, main was a HUGE function. I then made subroutines for anything that can be called by main
+		  which made the entire main much more neat and readable and maintainable.
+	- 11-8pm on Wednesday (due date): to fix bugs on history function, rewrite Fil function
+	- Thursday afternoon: 
+		.fixed another bugs for history to regconiez !N where N > existing number  of commands. 
+		.implement pipe function
+
+Notes:
+	I spent most of the time coding on my local machine and then implement the function on the thompson server once I know it worked
+
+List of completed features:
+1. (2 points) Ignore signals SIGINT, SIGTSTP, and SIGQUIT. This some of the first executable statements in the main() function.
+	DONE
+
+2. (3 points) Create a dynamic shell prompt that changes either every time the user presses [ENTER] to execute a command, or changes as a result of the last command. Examples include showing the current date and time, showing the current working subdirectory, com- mand number, etc. Static prompts will result in loss of points. Creating a new shell prompt should be a separate function.
+	DONE
+	Shell dynamically prints (hours:mins:seconds) + my name upon pressing enter 
+
+3. (25 points) If the command entered is an external command, then your shell will create a child process with or without arguments. The child process will run in the foreground by default. If the last token on the command line is the ampersand character (&), then your program must fork a child process and execute in the background. If it is a background process, your shell will print the next prompt and wait for the user to enter the next command. You should have separate parent and child functions in your program.
+	DONE
+
+4. (5 points) A command, with or without arguments that uses file redirection. • Example: thompson> ls -l > out.txt
+	HALF DONE:
+		-CAN DO: >
+			eg: ls -l > redirection.txt
+		-CANNOT DO: <
+
+5. (5 points) A command with or without arguments that pipes the output of the first process
+into the input of a second process.
+	DONE
+	eg:
+		sort redirection.txt | grep "Korea"
+6. (20 points) Implement a command history feature. Follow the specification on page 159 of our textbook for a description of the history feature. This should be written as separate functions.
+	DONE:
+		!!:
+			- will execute the previous function.
+			- put the name of the recently executed function in history
+		!N where N <= most current function:
+			- will execute that function
+			- put the name of the recently executed Nth function in history
+
+7. (10 points) Implement a new internal command called forweb which takes the name of a subdirectory dirname and makes all files o+r and all folders o+rx in the file hierarchy rooted at dirname. This should be written as separate functions.
+	DONE
+
+8. (10 points) Implement a new internal command called nls that is similar to the ls command but that, by default, displays regular files and directories separately. This should be written as separate functions.
+	DONE
+		print DIRECTORIES first
+		then print some new lines
+		print REGULAR FILES afterwards.
+
+9. (10 points) Implement a new internal command called fil. The usage is as follows: • Example: thompson> fil [from] [to]
+to transform text from the named file from to the named file to. If only one file argument is supplied, it is assumed to be for the from file. A dash means standard input; a missing to means standard output. The fil command works as follows:
+	NOT DONE: fil - out.txt. I can open and write to the file but I'm stuck at signaling a quit signal.
+
+a. All tabs are replaced by an equivalent number of spaces. b. All trailing blanks at the end of each line are removed. [DONE]
+c. All lines longer than 132 characters are folded.																		[DONE]
+d. A form fed is added for every 66 lines from the previous form feed.													[DONE]
+e. All BACKSPACE and nonprinting characters are removed. This should be written as separate functions.					[DONE]
+
+	after spending entire weekend (which resulted in a half working fil function) + 4 more hours on Wednesday night rewriting with a new algorithm to read char by char till eof.
+
+Uncompleted features:
+	I did not implement the second part of redirection, I did not implement the redirection from input < 
+	NOT DONE: fil - out.txt. I can open and write to the file but I'm stuck at signaling a quit signal.
